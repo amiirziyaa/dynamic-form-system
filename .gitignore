@@ -1,0 +1,12 @@
+# .gitignore
+
+# Environments
+.env
+
+# Django
+db.sqlite3
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
