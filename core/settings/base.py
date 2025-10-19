@@ -25,9 +25,12 @@ INSTALLED_APPS = [
 
     # Local apps
     'accounts',
+    'categories',
     'forms',
     'processes',
-    'reports',
+    'submissions',
+    'analytics',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -96,3 +99,6 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.User'
