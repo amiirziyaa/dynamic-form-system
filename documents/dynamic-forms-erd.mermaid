@@ -1,0 +1,208 @@
+erDiagram
+    User ||--o{ Form : creates
+    User ||--o{ Process : creates
+    User ||--o{ Category : creates
+    User ||--o{ FormSubmission : submits
+    User ||--o{ ProcessProgress : has
+    
+    Category ||--o{ Form : contains
+    Category ||--o{ Process : contains
+    Category }o--|| User : "belongs_to"
+    
+    Form ||--o{ FormField : contains
+    Form ||--o{ FormSubmission : receives
+    Form ||--o{ FormView : tracks
+    Form }o--o| Category : "categorized_in"
+    Form }o--|| User : "created_by"
+    
+    FormField ||--o{ FieldOption : has
+    FormField }o--|| Form : "belongs_to"
+    
+    Process ||--o{ ProcessStep : contains
+    Process ||--o{ ProcessProgress : tracks
+    Process ||--o{ ProcessView : tracks
+    Process }o--o| Category : "categorized_in"
+    Process }o--|| User : "created_by"
+    
+    ProcessStep }o--|| Process : "belongs_to"
+    ProcessStep }o--|| Form : references
+    
+    FormSubmission ||--o{ SubmissionAnswer : contains
+    FormSubmission }o--|| User : "submitted_by"
+    FormSubmission }o--|| Form : "for_form"
+    FormSubmission }o--o| ProcessProgress : "part_of"
+    
+    SubmissionAnswer }o--|| FormSubmission : "belongs_to"
+    SubmissionAnswer }o--|| FormField : "answers"
+    
+    ProcessProgress }o--|| Process : "for_process"
+    ProcessProgress }o--|| User : "belongs_to"
+    ProcessProgress ||--o{ ProcessStepCompletion : tracks
+    
+    ProcessStepCompletion }o--|| ProcessProgress : "belongs_to"
+    ProcessStepCompletion }o--|| ProcessStep : "for_step"
+    ProcessStepCompletion }o--o| FormSubmission : references
+
+    User {
+        uuid id PK
+        string email UK
+        string password
+        string first_name
+        string last_name
+        string phone_number
+        boolean is_active
+        boolean is_staff
+        boolean email_verified
+        datetime created_at
+        datetime updated_at
+        datetime last_login
+    }
+    
+    Category {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string description
+        string color
+        datetime created_at
+        datetime updated_at
+    }
+    
+    Form {
+        uuid id PK
+        uuid user_id FK
+        uuid category_id FK "nullable"
+        string title
+        text description
+        string unique_slug UK
+        enum visibility "public/private"
+        string access_password "nullable, encrypted"
+        boolean is_active
+        json settings "additional_settings"
+        datetime created_at
+        datetime updated_at
+        datetime published_at "nullable"
+    }
+    
+    FormField {
+        uuid id PK
+        uuid form_id FK
+        enum field_type "text/number/email/select/checkbox/radio/textarea/date/file"
+        string label
+        text description "nullable"
+        boolean is_required
+        integer order_index
+        json validation_rules "min/max/pattern/etc"
+        json settings "placeholder/default_value/etc"
+        datetime created_at
+        datetime updated_at
+    }
+    
+    FieldOption {
+        uuid id PK
+        uuid field_id FK
+        string label
+        string value
+        integer order_index
+        datetime created_at
+    }
+    
+    Process {
+        uuid id PK
+        uuid user_id FK
+        uuid category_id FK "nullable"
+        string title
+        text description
+        string unique_slug UK
+        enum visibility "public/private"
+        string access_password "nullable, encrypted"
+        enum process_type "linear/free"
+        boolean is_active
+        json settings
+        datetime created_at
+        datetime updated_at
+        datetime published_at "nullable"
+    }
+    
+    ProcessStep {
+        uuid id PK
+        uuid process_id FK
+        uuid form_id FK
+        string title
+        text description "nullable"
+        integer order_index
+        boolean is_required
+        json conditions "for_branching_logic"
+        datetime created_at
+        datetime updated_at
+    }
+    
+    FormSubmission {
+        uuid id PK
+        uuid form_id FK
+        uuid user_id FK "nullable, anonymous allowed"
+        uuid process_progress_id FK "nullable"
+        string session_id "for_anonymous_tracking"
+        enum status "draft/submitted/archived"
+        json metadata "ip/user_agent/etc"
+        datetime submitted_at
+        datetime created_at
+        datetime updated_at
+    }
+    
+    SubmissionAnswer {
+        uuid id PK
+        uuid submission_id FK
+        uuid field_id FK
+        text text_value "nullable"
+        decimal numeric_value "nullable"
+        boolean boolean_value "nullable"
+        datetime date_value "nullable"
+        json array_value "for_multiple_selections"
+        string file_url "nullable"
+        datetime created_at
+    }
+    
+    ProcessProgress {
+        uuid id PK
+        uuid process_id FK
+        uuid user_id FK "nullable"
+        string session_id "for_anonymous_tracking"
+        enum status "in_progress/completed/abandoned"
+        integer current_step_index
+        decimal completion_percentage
+        datetime started_at
+        datetime completed_at "nullable"
+        datetime last_activity_at
+        datetime created_at
+        datetime updated_at
+    }
+    
+    ProcessStepCompletion {
+        uuid id PK
+        uuid progress_id FK
+        uuid step_id FK
+        uuid submission_id FK "nullable"
+        enum status "pending/completed/skipped"
+        datetime completed_at "nullable"
+        datetime created_at
+        datetime updated_at
+    }
+    
+    FormView {
+        uuid id PK
+        uuid form_id FK
+        string session_id
+        string ip_address "nullable"
+        json metadata "user_agent/referer/etc"
+        datetime viewed_at
+    }
+    
+    ProcessView {
+        uuid id PK
+        uuid process_id FK
+        string session_id
+        string ip_address "nullable"
+        json metadata
+        datetime viewed_at
+    }
