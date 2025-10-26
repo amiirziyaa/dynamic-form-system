@@ -2,6 +2,14 @@ from rest_framework import serializers
 from .models import FormField, FieldOption, Form
 from django.db import transaction
 import re
+from django.utils.text import slugify
+from django.contrib.auth.hashers import make_password
+from rest_framework.validators import UniqueValidator
+from .models import Form, FormField, FieldOption 
+from categories.models import Category
+import re
+import uuid
+
 
 class FieldOptionSerializer(serializers.ModelSerializer):
     """
@@ -419,3 +427,128 @@ class FieldOptionReorderSerializer(serializers.Serializer):
             ).update(order_index=int(item['order_index']))
 
         return FieldOption.objects.filter(field=field).order_by('order_index')
+    
+class FormListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing Forms (lightweight).
+    """
+    fields_count = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = Form
+        fields = [
+            'id', 'title', 'unique_slug', 'visibility', 'is_active', 
+            'published_at', 'created_at', 'updated_at', 'fields_count'
+        ]
+        read_only_fields = fields
+
+
+class FormSerializer(serializers.ModelSerializer):
+    """
+    Serializer for detailed Form (Create, Retrieve, Update).
+    Includes nested fields on retrieve.
+    """
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    
+    fields = FormFieldListSerializer(many=True, read_only=True)
+    
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        required=False,
+        allow_null=True,
+        pk_field=serializers.UUIDField()
+    )
+    
+    unique_slug = serializers.SlugField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        validators=[UniqueValidator(queryset=Form.objects.all(), message="A form with this slug already exists.")]
+    )
+    
+    access_password = serializers.CharField(
+        max_length=128,
+        write_only=True,
+        required=False,
+        allow_null=True,
+        style={'input_type': 'password'}
+    )
+
+    class Meta:
+        model = Form
+        fields = [
+            'id', 'user', 'category', 'title', 'description', 'unique_slug',
+            'visibility', 'access_password', 'is_active', 'settings',
+            'published_at', 'created_at', 'updated_at', 'fields'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'fields']
+
+    def validate_category(self, value):
+        """
+        Check if the category belongs to the request user.
+        """
+        if value and value.user != self.context['request'].user:
+            raise serializers.ValidationError("This category does not belong to you.")
+        return value
+
+    def validate_unique_slug(self, value):
+        """
+        Ensure slug is unique.
+        """
+        if not value:
+            title = self.initial_data.get('title')
+            if not title:
+                raise serializers.ValidationError({'title': 'Title is required to generate a slug.'})
+            
+            slug = slugify(title)
+            if Form.objects.filter(unique_slug=slug).exists():
+                slug = f"{slug}-{uuid.uuid4().hex[:6]}"
+            
+            return slug
+        
+        if self.instance:
+            if Form.objects.filter(unique_slug=value).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError("A form with this slug already exists.")
+        
+        return value
+
+    def validate(self, data):
+        """
+        Validate password requirement for private forms.
+        """
+        visibility = data.get('visibility', self.instance.visibility if self.instance else 'public')
+        access_password = data.get('access_password')
+
+        if visibility == 'private':
+            if self.instance and not access_password:
+                pass
+            elif not access_password:
+                raise serializers.ValidationError({'access_password': 'Password is required for private forms.'})
+        
+        elif visibility == 'public':
+            data['access_password'] = None
+
+        return data
+
+    def create(self, validated_data):
+        """
+        Handle password hashing on create.
+        """
+        access_password = validated_data.pop('access_password', None)
+        if validated_data.get('visibility') == 'private' and access_password:
+            validated_data['access_password'] = make_password(access_password)
+            
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        """
+        Handle password hashing on update.
+        """
+        access_password = validated_data.pop('access_password', None)
+        
+        if access_password:
+            instance.access_password = make_password(access_password)
+        elif 'visibility' in validated_data and validated_data['visibility'] == 'public':
+            instance.access_password = None
+            
+        return super().update(instance, validated_data)
