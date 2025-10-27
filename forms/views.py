@@ -6,13 +6,17 @@ from django.shortcuts import get_object_or_404
 from django.db import models
 
 from .models import FormField, FieldOption, Form
+from django.db.models import Count
 from .serializers import (
+    FormSerializer,
+    FormListSerializer,
     FormFieldSerializer,
     FormFieldListSerializer,
     FormFieldReorderSerializer,
     FieldOptionSerializer,
     FieldOptionReorderSerializer
 )
+from .models import Form, FormField, FieldOption
 from .permissions import IsFormOwner, CanManageFieldOptions
 
 
@@ -339,3 +343,46 @@ class FieldOptionViewSet(viewsets.ModelViewSet):
             'message': 'Options reordered successfully',
             'options': FieldOptionSerializer(options, many=True).data
         })
+    
+class FormViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing Forms (Create, List, Retrieve, Update, Delete)
+
+    Endpoints:
+    - GET    /api/v1/forms/
+    - POST   /api/v1/forms/
+    - GET    /api/v1/forms/{unique_slug}/
+    - PATCH  /api/v1/forms/{unique_slug}/
+    - DELETE /api/v1/forms/{unique_slug}/
+    """
+    permission_classes = [IsAuthenticated, IsFormOwner]
+    lookup_field = 'unique_slug'
+
+    def get_queryset(self):
+        """
+        Get all forms owned by the current user.
+        Annotate with field count for list view.
+        """
+        queryset = Form.objects.filter(user=self.request.user)
+        
+        if self.action == 'list':
+            queryset = queryset.annotate(fields_count=Count('fields'))
+            
+        elif self.action == 'retrieve':
+            queryset = queryset.prefetch_related('fields')
+            
+        return queryset.order_by('-created_at')
+
+    def get_serializer_class(self):
+        """
+        Return different serializers for list and detail actions.
+        """
+        if self.action == 'list':
+            return FormListSerializer
+        return FormSerializer
+
+    def perform_create(self, serializer):
+        """
+        Set the user for the form on creation.
+        """
+        serializer.save(user=self.request.user)
