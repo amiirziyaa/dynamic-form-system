@@ -110,7 +110,7 @@
 ### Bulk Operations
 - `POST /api/v1/forms/{slug}/submissions/bulk-delete/` - Delete multiple submissions
 - `POST /api/v1/forms/{slug}/submissions/bulk-export/` - Export filtered submissions
-~~~~
+
 ---
 
 ## 6. Form Analytics & Reporting
