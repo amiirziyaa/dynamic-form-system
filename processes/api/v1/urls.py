@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from processes.views import ProcessViewSet, ProcessStepViewSet
 from processes.public_views import PublicProcessViewSet
+from processes.analytics_views import ProcessAnalyticsViewSet
 
 app_name = 'processes'
 
@@ -125,8 +126,80 @@ urlpatterns = [
             'delete': 'destroy'
         }),
         name='step-detail'
-       ),
-   ]
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_overview'
+        }),
+        name='process-analytics-overview'
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/views/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_views'
+        }),
+        name='process-analytics-views'
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/completions/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_completions'
+        }),
+        name='process-analytics-completions'
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/completion-rate/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_completion_rate'
+        }),
+        name='process-analytics-completion-rate'
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/step-drop-off/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_step_drop_off'
+        }),
+        name='process-analytics-step-drop-off'
+    ),
+    
+    path(
+        'processes/<slug:slug>/analytics/average-time/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'analytics_average_time'
+        }),
+        name='process-analytics-average-time'
+    ),
+    
+    path(
+        'processes/<slug:slug>/progress/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'list_progress'
+        }),
+        name='process-progress-list'
+    ),
+    
+    path(
+        'processes/<slug:slug>/progress/<uuid:progress_id>/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'get_progress'
+        }),
+        name='process-progress-detail'
+    ),
+    
+    path(
+        'processes/<slug:slug>/progress/abandoned/',
+        ProcessAnalyticsViewSet.as_view({
+            'get': 'list_abandoned'
+        }),
+        name='process-progress-abandoned'
+    ),
+]
 
 urlpatterns = router.urls + urlpatterns
 
