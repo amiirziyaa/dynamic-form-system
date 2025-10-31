@@ -24,4 +24,6 @@ urlpatterns = [
     # API v1 endpoints
     path('api/v1/', include('forms.api.v1.urls')),
     path('api/v1/', include('categories.api.v1.urls')),
+    path('api/v1/auth/', include('accounts.api.v1.urls')),
+    path('api/v1/users/', include('accounts.api.v1.user_urls')),
 ]
