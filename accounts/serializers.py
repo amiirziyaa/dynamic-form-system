@@ -178,3 +178,8 @@ class EmailVerificationVerifySerializer(serializers.Serializer):
     """Serializer for verifying email with token"""
     token = serializers.CharField(required=True)
 
+
+class LogoutSerializer(serializers.Serializer):
+    """Serializer for logout request"""
+    refresh = serializers.CharField(required=True, help_text='Refresh token to blacklist')
+

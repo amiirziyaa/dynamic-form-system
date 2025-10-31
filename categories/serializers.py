@@ -178,7 +178,7 @@ class CategoryWithStatsSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'color', 'forms_count', 
                  'processes_count', 'total_items', 'created_at', 'updated_at']
     
-    def get_total_items(self, obj):
+    def get_total_items(self, obj) -> int:
         """Calculate total items (forms + processes)."""
         return getattr(obj, 'forms_count', 0) + getattr(obj, 'processes_count', 0)
 

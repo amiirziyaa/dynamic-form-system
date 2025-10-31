@@ -290,7 +290,7 @@ class FormFieldListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at']
 
-    def get_options_count(self, obj):
+    def get_options_count(self, obj) -> int:
         """Number of options (only for choice fields) """
         if obj.field_type in ['select', 'radio', 'checkbox']:
             return obj.options.count()
