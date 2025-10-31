@@ -32,7 +32,7 @@ class FormFieldViewSet(viewsets.ModelViewSet):
     - DELETE /api/v1/forms/{slug}/fields/{id}/
     - POST   /api/v1/forms/{slug}/fields/reorder/
     """
-    # permission_classes = [IsAuthenticated, IsFormOwner]
+    permission_classes = [IsAuthenticated, IsFormOwner]
     lookup_field = 'id'
 
     def get_queryset(self):
@@ -41,7 +41,7 @@ class FormFieldViewSet(viewsets.ModelViewSet):
         form = get_object_or_404(
             Form,
             unique_slug=form_slug,
-            # user=self.request.user
+            user=self.request.user
         )
         return FormField.objects.filter(form=form).prefetch_related('options')
 
@@ -59,7 +59,7 @@ class FormFieldViewSet(viewsets.ModelViewSet):
         return get_object_or_404(
             Form,
             unique_slug=form_slug,
-            # user=self.request.user
+            user=self.request.user
         )
 
     def list(self, request, *args, **kwargs):
@@ -198,7 +198,7 @@ class FieldOptionViewSet(viewsets.ModelViewSet):
     - POST   /api/v1/forms/{slug}/fields/{field_id}/options/reorder/
     """
     serializer_class = FieldOptionSerializer
-    # permission_classes = [IsAuthenticated, IsFormOwner]
+    permission_classes = [IsAuthenticated, IsFormOwner]
     lookup_field = 'id'
 
     def get_queryset(self):
@@ -214,7 +214,7 @@ class FieldOptionViewSet(viewsets.ModelViewSet):
         form = get_object_or_404(
             Form,
             unique_slug=form_slug,
-            # user=self.request.user
+            user=self.request.user
         )
 
         return get_object_or_404(
