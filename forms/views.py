@@ -549,7 +549,8 @@ class FormViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsFormOwner]
     lookup_field = 'unique_slug'
     lookup_url_kwarg = 'unique_slug'
-
+    search_fields = ['title', 'description', 'unique_slug']
+    
     def get_queryset(self):
         """
         Get all forms owned by the current user.

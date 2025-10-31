@@ -22,6 +22,11 @@ from drf_spectacular.views import (
     SpectacularRedocView
 )
 import core.system_views
+from core.system_views import (
+    DashboardOverviewView, 
+    RecentActivityView, 
+    GlobalSearchView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -38,6 +43,12 @@ urlpatterns = [
     
     # ReDoc
     path('api/v1/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('accounts/', include('allauth.urls'), name='socialaccount_signup'),
+
+    # Dashboard & Search Endpoints
+    path('api/v1/dashboard/overview/', DashboardOverviewView.as_view(), name='dashboard-overview'),
+    path('api/v1/dashboard/recent-activity/', RecentActivityView.as_view(), name='dashboard-recent-activity'),
+    path('api/v1/search/', GlobalSearchView.as_view(), name='global-search'),
 
     # API v1 endpoints
     path('api/v1/', include('forms.api.v1.urls')),
