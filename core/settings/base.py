@@ -14,6 +14,8 @@ SECRET_KEY = config('SECRET_KEY')
 
 # Application definition
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,6 +37,9 @@ INSTALLED_APPS = [
     'submissions',
     'analytics',
     'notifications',
+
+    'django_celery_beat',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -66,6 +71,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
+ASGI_APPLICATION = 'core.asgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -172,6 +178,27 @@ CACHES = {
     }
 }
 
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [config('REDIS_URL', default='redis://127.0.0.1:6379/1')],
+        },
+    },
+}
+
+
+CELERY_BROKER_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/1')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://127.0.0.1:6379/1')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# ============================================
+# CELERY BEAT (Scheduler) CONFIGURATION
+# ============================================
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # API Configuration
 API_VERSION = config('API_VERSION', default='1.0.0')
 CHANGELOG_URL = config('CHANGELOG_URL', default=None)

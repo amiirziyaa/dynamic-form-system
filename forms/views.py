@@ -15,11 +15,15 @@ from .serializers import (
     FormFieldListSerializer,
     FormFieldReorderSerializer,
     FieldOptionSerializer,
-    FieldOptionReorderSerializer
+    FieldOptionReorderSerializer,
+    FormPublishSerializer,
 )
 from .models import Form, FormField, FieldOption
 from .permissions import IsFormOwner, CanManageFieldOptions
-
+from django.db import transaction
+from django.utils.text import slugify
+from django.utils import timezone
+import uuid
 
 @extend_schema_view(
     list=extend_schema(
@@ -539,6 +543,8 @@ class FormViewSet(viewsets.ModelViewSet):
     - GET    /api/v1/forms/{unique_slug}/
     - PATCH  /api/v1/forms/{unique_slug}/
     - DELETE /api/v1/forms/{unique_slug}/
+    - PATCH  /api/v1/forms/{unique_slug}/publish/
+    - POST   /api/v1/forms/{unique_slug}/duplicate/
     """
     permission_classes = [IsAuthenticated, IsFormOwner]
     lookup_field = 'unique_slug'
@@ -560,11 +566,12 @@ class FormViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-created_at')
 
     def get_serializer_class(self):
-        """
-        Return different serializers for list and detail actions.
-        """
         if self.action == 'list':
             return FormListSerializer
+        
+        if self.action == 'publish':
+            return FormPublishSerializer
+            
         return FormSerializer
 
     def perform_create(self, serializer):
@@ -572,3 +579,77 @@ class FormViewSet(viewsets.ModelViewSet):
         Set the user for the form on creation.
         """
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['patch'], url_path='publish')
+    def publish(self, request, *args, **kwargs):
+        """
+        PATCH /api/v1/forms/{slug}/publish/
+        Body: { "is_active": true } یا { "is_active": false }
+        """
+        form = self.get_object()
+        serializer = self.get_serializer(
+            instance=form,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
+        return Response(
+            FormSerializer(form, context={'request': request}).data,
+            status=status.HTTP_200_OK
+        )
+
+    @transaction.atomic
+    @action(detail=True, methods=['post'], url_path='duplicate')
+    def duplicate(self, request, *args, **kwargs):
+        """
+        POST /api/v1/forms/{slug}/duplicate/
+        """
+        original_form = self.get_object()
+        
+        new_form = original_form
+        new_form.pk = None
+        new_form.id = uuid.uuid4()
+        new_form.title = f"Copy of {original_form.title}"
+        
+        new_slug = slugify(new_form.title)
+        while Form.objects.filter(unique_slug=new_slug).exists():
+            new_slug = f"{new_slug}-{uuid.uuid4().hex[:6]}"
+        new_form.unique_slug = new_slug
+        
+        new_form.is_active = False
+        new_form.published_at = None
+        new_form.save()
+        
+        old_field_to_new_field_map = {} 
+        
+        original_fields = original_form.fields.all().order_by('order_index')
+        
+        for original_field in original_fields:
+            original_field_id = original_field.id
+            
+            new_field = original_field
+            new_field.pk = None
+            new_field.id = uuid.uuid4()
+            new_field.form = new_form
+            new_field.save()
+            
+            old_field_to_new_field_map[original_field_id] = new_field
+        
+        for old_field_id, new_field in old_field_to_new_field_map.items():
+            original_options = FieldOption.objects.filter(field_id=old_field_id).order_by('order_index')
+            
+            new_options_list = []
+            for original_option in original_options:
+                new_option = original_option
+                new_option.pk = None
+                new_option.id = uuid.uuid4()
+                new_option.field = new_field
+                new_options_list.append(new_option)
+                
+            if new_options_list:
+                FieldOption.objects.bulk_create(new_options_list)
+
+        serializer = FormSerializer(new_form, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
