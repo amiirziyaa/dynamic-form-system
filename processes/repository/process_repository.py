@@ -46,6 +46,21 @@ class ProcessRepository:
         except Process.DoesNotExist:
             return None
 
+    def get_by_slug_public(self, slug: str) -> Optional[Process]:
+        """
+        Get a process by unique slug for public access (active processes only).
+        
+        Args:
+            slug: Unique slug of the process
+            
+        Returns:
+            Process instance or None if not found
+        """
+        try:
+            return Process.objects.get(unique_slug=slug, is_active=True)
+        except Process.DoesNotExist:
+            return None
+
     def get_by_user(self, user: User, prefetch_steps: bool = False) -> QuerySet[Process]:
         """
         Get all processes for a specific user.

@@ -53,6 +53,8 @@ class FormPasswordVerifySerializer(serializers.Serializer):
 
     def validate_password(self, value):
         """Validate password against form"""
+        from django.contrib.auth.hashers import check_password
+        
         form = self.context.get('form')
         if not form:
             raise serializers.ValidationError("Form not found")
@@ -60,9 +62,10 @@ class FormPasswordVerifySerializer(serializers.Serializer):
         if form.visibility != 'private':
             raise serializers.ValidationError("This form is not password protected")
 
-        # TODO: Use proper password hashing (bcrypt/django's check_password)
-        # For now, simple comparison (INSECURE - fix in production!)
-        if form.access_password != value:
+        if not form.access_password:
+            raise serializers.ValidationError("This form has no password set")
+
+        if not check_password(value, form.access_password):
             raise serializers.ValidationError("Incorrect password")
 
         return value

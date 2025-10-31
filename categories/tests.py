@@ -132,7 +132,7 @@ class CategoryAPITestCase(APITestCase):
         url = reverse('category-list')
         response = self.client.get(url)
         
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_user_cannot_access_other_user_categories(self):
         """Test that users cannot access other users' categories."""
@@ -583,7 +583,7 @@ class CategorySecurityTestCase(APITestCase):
         url = reverse('category-list')
         response = self.client.get(url)
         
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_user_cannot_access_other_user_categories(self):
         """Test that users cannot access other users' categories."""

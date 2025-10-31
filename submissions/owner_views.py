@@ -23,13 +23,6 @@ from .serializers import (
 )
 
 
-class IsFormOwner:
-    """Permission: Only form owner can access"""
-
-    def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated
-
-
 class SubmissionManagementViewSet(viewsets.GenericViewSet):
     """
     ViewSet for form owner to manage submissions
