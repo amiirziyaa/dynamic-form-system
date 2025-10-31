@@ -9,7 +9,8 @@ from .models import Form, FormField, FieldOption
 from categories.models import Category
 import re
 import uuid
-
+from django.utils import timezone
+from django.db.models import F
 
 class FieldOptionSerializer(serializers.ModelSerializer):
     """
@@ -552,3 +553,25 @@ class FormSerializer(serializers.ModelSerializer):
             instance.access_password = None
             
         return super().update(instance, validated_data)
+    
+class FormPublishSerializer(serializers.ModelSerializer):
+    is_active = serializers.BooleanField(required=True)
+
+    class Meta:
+        model = Form
+        fields = ['is_active', 'published_at']
+        read_only_fields = ['published_at']
+
+    def update(self, instance, validated_data):
+        is_active = validated_data.get('is_active')
+        
+        if is_active:
+            instance.is_active = True
+            if not instance.published_at:
+                instance.published_at = timezone.now()
+        else:
+            instance.is_active = False
+            # instance.published_at = None 
+        
+        instance.save()
+        return instance

@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from submissions.models import FormSubmission
 from forms.models import Form
 from analytics.models import FormView  # Assuming you have this model
@@ -174,6 +175,24 @@ class PublicFormViewSet(viewsets.GenericViewSet):
         )
         serializer.is_valid(raise_exception=True)
         submission = serializer.save()
+
+        try:
+            channel_layer = get_channel_layer()
+            group_name = f'form_report_{slug}'
+            
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "report.update",
+                    "message": {
+                        "status": "new_submission_received",
+                        "submission_id": str(submission.id),
+                        "submitted_at": submission.submitted_at.isoformat()
+                    }
+                }
+            )
+        except Exception as e:
+            print(f"Error sending WebSocket signal: {e}") 
 
         return Response({
             'message': 'Form submitted successfully',

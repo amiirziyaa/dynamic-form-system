@@ -72,3 +72,7 @@ urlpatterns = [
 ]
 
 urlpatterns = router.urls + urlpatterns
+
+urlpatterns.append(
+    path('forms/<slug:form_slug>/', include('analytics.api.v1.urls'))
+)
