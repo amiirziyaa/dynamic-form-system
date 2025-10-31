@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.core.cache import cache
@@ -19,6 +20,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     EmailVerificationSendSerializer,
+    LogoutSerializer,
 )
 from .services import OTPService, EmailService, TokenService
 
@@ -28,6 +30,29 @@ User = get_user_model()
 
 # Authentication Views
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Register new user',
+    description='Register a new user account with email and password. Returns JWT tokens upon successful registration.',
+    request=UserCreateSerializer,
+    responses={
+        201: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string', 'example': 'User registered successfully'},
+                'user': {'type': 'object'},
+                'tokens': {
+                    'type': 'object',
+                    'properties': {
+                        'refresh': {'type': 'string', 'description': 'Refresh token'},
+                        'access': {'type': 'string', 'description': 'Access token'}
+                    }
+                }
+            }
+        },
+        400: {'description': 'Invalid input data'}
+    }
+)
 class RegisterView(generics.CreateAPIView):
     """
     POST /api/v1/auth/register/
@@ -58,6 +83,29 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Login',
+    description='Authenticate user with email and password. Returns JWT tokens upon successful login.',
+    request=LoginSerializer,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'message': {'type': 'string', 'example': 'Login successful'},
+                'user': {'type': 'object'},
+                'tokens': {
+                    'type': 'object',
+                    'properties': {
+                        'refresh': {'type': 'string'},
+                        'access': {'type': 'string'}
+                    }
+                }
+            }
+        },
+        400: {'description': 'Invalid credentials'}
+    }
+)
 class LoginView(generics.GenericAPIView):
     """
     POST /api/v1/auth/login/
@@ -90,6 +138,16 @@ class LoginView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Logout',
+    description='Logout user by blacklisting the refresh token. Requires authentication.',
+    request=LogoutSerializer,
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string', 'example': 'Logout successful'}}},
+        400: {'description': 'Invalid token or missing refresh token'}
+    }
+)
 class LogoutView(generics.GenericAPIView):
     """
     POST /api/v1/auth/logout/
@@ -116,6 +174,16 @@ class LogoutView(generics.GenericAPIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Send OTP',
+    description='Send OTP code to phone number for authentication.',
+    request=OTPSendSerializer,
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string'}}},
+        429: {'description': 'Too many failed attempts'}
+    }
+)
 class OTPSendView(generics.GenericAPIView):
     """
     POST /api/v1/auth/otp/send/
@@ -153,6 +221,16 @@ class OTPSendView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Verify OTP',
+    description='Verify OTP code sent to phone number.',
+    request=OTPVerifySerializer,
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string', 'example': 'OTP verified successfully'}}},
+        400: {'description': 'Invalid OTP code'}
+    }
+)
 class OTPVerifyView(generics.GenericAPIView):
     """
     POST /api/v1/auth/otp/verify/
@@ -185,6 +263,15 @@ class OTPVerifyView(generics.GenericAPIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Request password reset',
+    description='Request password reset email. The response does not reveal whether the email exists.',
+    request=PasswordResetRequestSerializer,
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string'}}}
+    }
+)
 class PasswordResetRequestView(generics.GenericAPIView):
     """
     POST /api/v1/auth/password/reset/
@@ -218,11 +305,22 @@ class PasswordResetRequestView(generics.GenericAPIView):
             }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Confirm password reset',
+    description='Confirm password reset with token and set new password.',
+    request=PasswordResetConfirmSerializer,
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string', 'example': 'Password reset successfully'}}},
+        400: {'description': 'Invalid token or passwords do not match'}
+    }
+)
 class PasswordResetConfirmView(generics.GenericAPIView):
     """
     POST /api/v1/auth/password/reset/confirm/
     Confirm password reset with token
     """
+    serializer_class = PasswordResetConfirmSerializer
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, *args, **kwargs):
@@ -262,6 +360,21 @@ class PasswordResetConfirmView(generics.GenericAPIView):
 
 # User Profile Views
 
+@extend_schema_view(
+    get=extend_schema(
+        tags=['Users'],
+        summary='Get current user profile',
+        description='Retrieve the authenticated user\'s profile information.',
+        responses={200: UserSerializer}
+    ),
+    patch=extend_schema(
+        tags=['Users'],
+        summary='Update user profile',
+        description='Update the authenticated user\'s profile information.',
+        request=UserUpdateSerializer,
+        responses={200: UserSerializer}
+    )
+)
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """
     GET /api/v1/users/me/ - Get current user profile
@@ -289,11 +402,21 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['Users'],
+    summary='Send email verification',
+    description='Send email verification email to the authenticated user.',
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string', 'example': 'Verification email sent successfully'}}},
+        400: {'description': 'Email is already verified'}
+    }
+)
 class ResendVerificationEmailView(generics.GenericAPIView):
     """
     POST /api/v1/users/me/verify-email/
     Send email verification email
     """
+    serializer_class = EmailVerificationSendSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
@@ -315,6 +438,15 @@ class ResendVerificationEmailView(generics.GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
+@extend_schema(
+    tags=['Users'],
+    summary='Verify email',
+    description='Verify email address using verification token from email link. Does not require authentication.',
+    responses={
+        200: {'type': 'object', 'properties': {'message': {'type': 'string', 'example': 'Email verified successfully'}}},
+        400: {'description': 'Invalid or expired token'}
+    }
+)
 class EmailVerificationView(generics.GenericAPIView):
     """
     GET /api/v1/users/me/verify-email/{token}/

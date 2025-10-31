@@ -2,6 +2,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_headers
@@ -23,6 +24,83 @@ from categories.serializers import (
 from categories.permissions import CategoryPermission
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Categories'],
+        summary='List categories',
+        description='List all categories for the authenticated user. Supports pagination and search.',
+        responses={200: CategoryListSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Categories'],
+        summary='Create category',
+        description='Create a new category for the authenticated user.',
+        request=CategoryCreateSerializer,
+        responses={201: CategorySerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Categories'],
+        summary='Get category details',
+        description='Retrieve detailed information about a specific category.',
+        parameters=[
+            OpenApiParameter(
+                name='id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='Category UUID',
+                required=True
+            )
+        ],
+        responses={200: CategorySerializer}
+    ),
+    update=extend_schema(
+        tags=['Categories'],
+        summary='Update category',
+        description='Update a category. All fields are required.',
+        parameters=[
+            OpenApiParameter(
+                name='id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='Category UUID',
+                required=True
+            )
+        ],
+        request=CategoryUpdateSerializer,
+        responses={200: CategorySerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Categories'],
+        summary='Partially update category',
+        description='Partially update a category. Only provided fields will be updated.',
+        parameters=[
+            OpenApiParameter(
+                name='id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='Category UUID',
+                required=True
+            )
+        ],
+        request=CategoryUpdateSerializer,
+        responses={200: CategorySerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Categories'],
+        summary='Delete category',
+        description='Delete a category. Forms and processes in this category will have their category set to NULL.',
+        parameters=[
+            OpenApiParameter(
+                name='id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='Category UUID',
+                required=True
+            )
+        ],
+        responses={204: None}
+    )
+)
 class CategoryViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Category management.
@@ -33,6 +111,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     
     permission_classes = [CategoryPermission]
     lookup_field = 'id'
+    lookup_url_kwarg = 'id'
+    queryset = Category.objects.none()  # For schema generation only, actual queryset from get_queryset()
     
     def get_queryset(self):
         """Return categories for the authenticated user."""
@@ -223,6 +303,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
+    @extend_schema(
+        tags=['Categories'],
+        summary='Get category statistics',
+        description='Get statistics for a specific category including form and process counts.',
+        responses={200: CategoryStatsSerializer}
+    )
     @action(detail=True, methods=['get'])
     def stats(self, request, id=None):
         """
@@ -241,6 +327,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
     
+    @extend_schema(
+        tags=['Categories'],
+        summary='Bulk delete categories',
+        description='Delete multiple categories at once. Maximum 50 categories per request.',
+        request=CategoryBulkDeleteSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {'deleted_count': {'type': 'integer'}, 'failed_count': {'type': 'integer'}}}
+        }
+    )
     @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         """
@@ -268,6 +363,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
     
+    @extend_schema(
+        tags=['Categories'],
+        summary='Get most used categories',
+        description='Get most used categories by form/process count. Returns up to 20 categories.',
+        parameters=[
+            OpenApiParameter(
+                name='limit',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description='Maximum number of categories to return',
+                required=False,
+                default=5
+            )
+        ],
+        responses={200: CategoryWithStatsSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'])
     def most_used(self, request):
         """
@@ -291,6 +402,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @extend_schema(
+        tags=['Categories'],
+        summary='List forms in category',
+        description='List all forms in a specific category. This endpoint is currently not implemented.',
+        responses={501: {'description': 'Not implemented'}}
+    )
     @action(detail=True, methods=['get'])
     def forms(self, request, id=None):
         """
@@ -303,6 +420,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
             status=status.HTTP_501_NOT_IMPLEMENTED
         )
     
+    @extend_schema(
+        tags=['Categories'],
+        summary='List processes in category',
+        description='List all processes in a specific category. This endpoint is currently not implemented.',
+        responses={501: {'description': 'Not implemented'}}
+    )
     @action(detail=True, methods=['get'])
     def processes(self, request, id=None):
         """
