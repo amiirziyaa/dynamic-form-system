@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -13,10 +14,22 @@ from .serializers import (
     FormPublicSerializer,
     FormPasswordVerifySerializer,
     FormSubmissionSerializer,
-    FormSubmissionReadSerializer
+    FormSubmissionReadSerializer,
+    FormTrackViewSerializer,
 )
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        tags=['Public Forms'],
+        summary='Get public form',
+        description='Get public form structure for display. Private forms require password verification first.',
+        responses={
+            200: FormPublicSerializer,
+            403: {'description': 'Password required for private forms'}
+        }
+    )
+)
 class PublicFormViewSet(viewsets.GenericViewSet):
     """
     Public API for viewing and submitting forms
@@ -34,6 +47,7 @@ class PublicFormViewSet(viewsets.GenericViewSet):
     permission_classes = [AllowAny]  # Public access!
     lookup_field = 'unique_slug'
     lookup_url_kwarg = 'slug'
+    serializer_class = FormPublicSerializer  # Default serializer for schema generation
 
     def get_queryset(self):
         """Get active forms only"""
@@ -63,6 +77,19 @@ class PublicFormViewSet(viewsets.GenericViewSet):
         serializer = FormPublicSerializer(form)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=['Public Forms'],
+        summary='Verify form password',
+        description='Verify password for private form. Access is stored in session for 1 hour.',
+        request=FormPasswordVerifySerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'message': {'type': 'string', 'example': 'Password verified successfully'},
+                'access_granted': {'type': 'boolean', 'example': True}
+            }},
+            400: {'description': 'Form is not password protected'}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='verify-password')
     def verify_password(self, request, slug=None):
         """
@@ -94,6 +121,17 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             'access_granted': True
         })
 
+    @extend_schema(
+        tags=['Public Forms'],
+        summary='Track form view',
+        description='Track a form view for analytics purposes. No authentication required.',
+        request=FormTrackViewSerializer,
+        responses={
+            201: {'type': 'object', 'properties': {
+                'message': {'type': 'string', 'example': 'View tracked successfully'}
+            }}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='view')
     def track_view(self, request, slug=None):
         """
@@ -136,6 +174,20 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             'message': 'View tracked successfully'
         }, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        tags=['Public Forms'],
+        summary='Submit form',
+        description='Submit a completed form response. Private forms require password verification first.',
+        request=FormSubmissionSerializer,
+        responses={
+            201: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'submission_id': {'type': 'string', 'format': 'uuid'},
+                'session_id': {'type': 'string'}
+            }},
+            403: {'description': 'Password verification required for private forms'}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='submit')
     def submit_form(self, request, slug=None):
         """
@@ -181,6 +233,19 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             'session_id': submission.session_id
         }, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        tags=['Public Forms'],
+        summary='Save draft submission',
+        description='Save a draft form submission that can be completed later.',
+        request=FormSubmissionSerializer,
+        responses={
+            201: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'submission_id': {'type': 'string', 'format': 'uuid'},
+                'session_id': {'type': 'string'}
+            }}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='submissions/draft')
     def save_draft(self, request, slug=None):
         """
@@ -213,6 +278,15 @@ class PublicFormViewSet(viewsets.GenericViewSet):
             'session_id': submission.session_id
         }, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        tags=['Public Forms'],
+        summary='Get draft submission',
+        description='Retrieve a saved draft submission by session ID.',
+        responses={
+            200: FormSubmissionReadSerializer,
+            404: {'description': 'Draft not found'}
+        }
+    )
     @action(
         detail=True,
         methods=['get'],

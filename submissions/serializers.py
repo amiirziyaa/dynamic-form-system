@@ -42,7 +42,7 @@ class FormPublicSerializer(serializers.ModelSerializer):
             'is_password_protected', 'fields', 'settings'
         ]
 
-    def get_is_password_protected(self, obj):
+    def get_is_password_protected(self, obj) -> bool:
         """Check if form requires password"""
         return obj.visibility == 'private' and bool(obj.access_password)
 
@@ -69,6 +69,12 @@ class FormPasswordVerifySerializer(serializers.Serializer):
             raise serializers.ValidationError("Incorrect password")
 
         return value
+
+
+class FormTrackViewSerializer(serializers.Serializer):
+    """Serializer for tracking form view"""
+    session_id = serializers.CharField(required=False, help_text='Optional session identifier')
+    metadata = serializers.DictField(required=False, help_text='Optional tracking metadata')
 
 
 class SubmissionAnswerSerializer(serializers.ModelSerializer):
@@ -336,7 +342,7 @@ class FormSubmissionDetailSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
 
-    def get_user_name(self, obj):
+    def get_user_name(self, obj) -> str:
         """Get user full name or email"""
         if obj.user:
             return obj.user.full_name or obj.user.email

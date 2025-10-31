@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.db.models import Count
 
 from .serializers import (
@@ -12,11 +13,53 @@ from .serializers import (
     ProcessStepListSerializer,
     ProcessStepReorderSerializer
 )
+from .models import Process
 from .permissions import IsProcessOwner, IsProcessStepOwner
 from .services import ProcessService, ProcessStepService
 from shared.exceptions import NotFoundError, ValidationError as CustomValidationError
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Processes'],
+        summary='List process steps',
+        description='List all steps in a process.',
+        responses={200: ProcessStepListSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Processes'],
+        summary='Create process step',
+        description='Add a new step to a process.',
+        request=ProcessStepSerializer,
+        responses={201: ProcessStepSerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Processes'],
+        summary='Get process step',
+        description='Get details of a specific process step.',
+        responses={200: ProcessStepSerializer}
+    ),
+    update=extend_schema(
+        tags=['Processes'],
+        summary='Update process step',
+        description='Update a process step.',
+        request=ProcessStepSerializer,
+        responses={200: ProcessStepSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Processes'],
+        summary='Partially update process step',
+        description='Partially update a process step.',
+        request=ProcessStepSerializer,
+        responses={200: ProcessStepSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Processes'],
+        summary='Delete process step',
+        description='Delete a process step.',
+        responses={204: None}
+    )
+)
 class ProcessStepViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing process steps
@@ -160,6 +203,18 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
         except NotFoundError as e:
             raise NotFound(str(e))
 
+    @extend_schema(
+        tags=['Processes'],
+        summary='Reorder process steps',
+        description='Reorder steps within a process by providing new order_index values.',
+        request=ProcessStepReorderSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'updated_count': {'type': 'integer'}
+            }}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='reorder')
     def reorder(self, request, *args, **kwargs):
         """
@@ -190,6 +245,83 @@ class ProcessStepViewSet(viewsets.ModelViewSet):
             raise DRFValidationError(str(e))
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Processes'],
+        summary='List processes',
+        description='List all processes for the authenticated user.',
+        responses={200: ProcessListSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Processes'],
+        summary='Create process',
+        description='Create a new process workflow.',
+        request=ProcessSerializer,
+        responses={201: ProcessSerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Processes'],
+        summary='Get process details',
+        description='Get detailed information about a process including all steps.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Process unique slug',
+                required=True
+            )
+        ],
+        responses={200: ProcessSerializer}
+    ),
+    update=extend_schema(
+        tags=['Processes'],
+        summary='Update process',
+        description='Update a process. All fields are required.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Process unique slug',
+                required=True
+            )
+        ],
+        request=ProcessSerializer,
+        responses={200: ProcessSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Processes'],
+        summary='Partially update process',
+        description='Partially update a process. Only provided fields will be updated.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Process unique slug',
+                required=True
+            )
+        ],
+        request=ProcessSerializer,
+        responses={200: ProcessSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Processes'],
+        summary='Delete process',
+        description='Delete a process. This will also delete all steps and progress records.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Process unique slug',
+                required=True
+            )
+        ],
+        responses={204: None}
+    )
+)
 class ProcessViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Processes (Create, List, Retrieve, Update, Delete)
@@ -205,6 +337,8 @@ class ProcessViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated, IsProcessOwner]
     lookup_field = 'unique_slug'
+    lookup_url_kwarg = 'unique_slug'
+    queryset = Process.objects.none()  # For schema generation only, actual queryset from get_queryset()
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -3,11 +3,29 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import NotFound, ValidationError as DRFValidationError
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from processes.service_layers.process_execution_service import ProcessExecutionService
+from processes.serializers import (
+    ProcessViewSerializer,
+    ProcessStartSerializer,
+    ProcessCompleteStepSerializer,
+    ProcessCompleteSerializer,
+)
 from shared.exceptions import NotFoundError, ValidationError as CustomValidationError
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        tags=['Public Processes'],
+        summary='Get public process',
+        description='Get public process structure for display. Private processes require password verification first.',
+        responses={
+            200: {'type': 'object', 'description': 'Process structure'},
+            403: {'description': 'Password required for private processes'}
+        }
+    )
+)
 class PublicProcessViewSet(viewsets.GenericViewSet):
     """
     Public API for viewing and executing processes
@@ -29,6 +47,7 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
     permission_classes = [AllowAny]
     lookup_field = 'unique_slug'
     lookup_url_kwarg = 'slug'
+    serializer_class = ProcessViewSerializer  # Default serializer for schema generation
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -91,6 +110,13 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except CustomValidationError as e:
             raise DRFValidationError(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Track process view',
+        description='Track a process view for analytics purposes. No authentication required.',
+        request=ProcessViewSerializer,
+        responses={201: {'type': 'object', 'properties': {'message': {'type': 'string'}, 'view_id': {'type': 'string', 'format': 'uuid'}}}}
+    )
     @action(detail=True, methods=['post'], url_path='view')
     def track_view(self, request, slug=None):
         """
@@ -119,6 +145,20 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except NotFoundError as e:
             raise NotFound(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Start process',
+        description='Start a new process execution for a user session.',
+        request=ProcessStartSerializer,
+        responses={201: {'type': 'object', 'properties': {
+            'progress_id': {'type': 'string', 'format': 'uuid'},
+            'session_id': {'type': 'string'},
+            'status': {'type': 'string'},
+            'current_step_index': {'type': 'integer'},
+            'completion_percentage': {'type': 'number'},
+            'started_at': {'type': 'string', 'format': 'date-time'}
+        }}}
+    )
     @action(detail=True, methods=['post'], url_path='start')
     def start(self, request, slug=None):
         """
@@ -146,6 +186,12 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except CustomValidationError as e:
             raise DRFValidationError(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Get process progress',
+        description='Get progress status for a user session.',
+        responses={200: {'type': 'object', 'description': 'Progress data'}}
+    )
     @action(detail=True, methods=['get'], url_path='progress/(?P<session_id>[^/.]+)')
     def get_progress(self, request, slug=None, session_id=None):
         """
@@ -158,6 +204,12 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except NotFoundError as e:
             raise NotFound(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Get current step',
+        description='Get the current step for a user session.',
+        responses={200: {'type': 'object', 'description': 'Current step data'}}
+    )
     @action(detail=True, methods=['get'], url_path='progress/(?P<session_id>[^/.]+)/current-step')
     def get_current_step(self, request, slug=None, session_id=None):
         """
@@ -170,6 +222,12 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except NotFoundError as e:
             raise NotFound(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Move to next step',
+        description='Move to the next step in a linear process.',
+        responses={200: {'type': 'object', 'description': 'Updated progress data'}}
+    )
     @action(detail=True, methods=['post'], url_path='progress/(?P<session_id>[^/.]+)/next')
     def move_next(self, request, slug=None, session_id=None):
         """
@@ -184,6 +242,12 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except CustomValidationError as e:
             raise DRFValidationError(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Move to previous step',
+        description='Go back to the previous step in a linear process.',
+        responses={200: {'type': 'object', 'description': 'Updated progress data'}}
+    )
     @action(detail=True, methods=['post'], url_path='progress/(?P<session_id>[^/.]+)/previous')
     def move_previous(self, request, slug=None, session_id=None):
         """
@@ -198,6 +262,12 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except CustomValidationError as e:
             raise DRFValidationError(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Get step form',
+        description='Get the form associated with a process step.',
+        responses={200: {'type': 'object', 'description': 'Form structure'}}
+    )
     @action(detail=True, methods=['get'], url_path='steps/(?P<step_id>[^/.]+)/form')
     def get_step_form(self, request, slug=None, step_id=None):
         """
@@ -210,6 +280,13 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except NotFoundError as e:
             raise NotFound(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Complete step',
+        description='Complete a process step with form submission.',
+        request=ProcessCompleteStepSerializer,
+        responses={200: {'type': 'object', 'description': 'Completion result'}}
+    )
     @action(detail=True, methods=['post'], url_path='steps/(?P<step_id>[^/.]+)/complete')
     def complete_step(self, request, slug=None, step_id=None):
         """
@@ -234,6 +311,13 @@ class PublicProcessViewSet(viewsets.GenericViewSet):
         except CustomValidationError as e:
             raise DRFValidationError(str(e))
 
+    @extend_schema(
+        tags=['Public Processes'],
+        summary='Complete process',
+        description='Mark the entire process as completed for a user session.',
+        request=ProcessCompleteSerializer,
+        responses={200: {'type': 'object', 'description': 'Completion result'}}
+    )
     @action(detail=True, methods=['post'], url_path='complete')
     def complete_process(self, request, slug=None):
         """

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Avg, Q, F
 from django.db.models.functions import TruncDate
@@ -23,6 +24,57 @@ from .serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Submissions'],
+        summary='List form submissions',
+        description='List all submissions for a form. Supports filtering by status, date range, and search.',
+        parameters=[
+            OpenApiParameter(
+                name='status',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Filter by status',
+                required=False,
+                enum=['submitted', 'draft', 'archived']
+            ),
+            OpenApiParameter(
+                name='date_from',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Filter from date (YYYY-MM-DD)',
+                required=False
+            ),
+            OpenApiParameter(
+                name='date_to',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Filter to date (YYYY-MM-DD)',
+                required=False
+            ),
+            OpenApiParameter(
+                name='search',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description='Search in email or session_id',
+                required=False
+            ),
+        ],
+        responses={200: FormSubmissionReadSerializer(many=True)}
+    ),
+    retrieve=extend_schema(
+        tags=['Submissions'],
+        summary='Get submission details',
+        description='Get detailed information about a specific submission including all answers.',
+        responses={200: FormSubmissionDetailSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Submissions'],
+        summary='Delete submission',
+        description='Delete a form submission.',
+        responses={204: None}
+    )
+)
 class SubmissionManagementViewSet(viewsets.GenericViewSet):
     """
     ViewSet for form owner to manage submissions
@@ -39,6 +91,7 @@ class SubmissionManagementViewSet(viewsets.GenericViewSet):
     """
     permission_classes = [IsAuthenticated]
     lookup_field = 'id'
+    serializer_class = FormSubmissionReadSerializer  # Default serializer for schema generation
 
     def get_queryset(self):
         """Get submissions for user's form"""
@@ -222,6 +275,15 @@ class SubmissionManagementViewSet(viewsets.GenericViewSet):
         serializer = SubmissionStatsSerializer(data)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=['Submissions'],
+        summary='Export submissions',
+        description='Export form submissions in CSV, JSON, or Excel format. Supports filtering.',
+        request=ExportSerializer,
+        responses={
+            200: {'description': 'File download', 'content': {'application/json': {}, 'text/csv': {}, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}}}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='export')
     def export_submissions(self, request, slug=None):
         """
@@ -400,6 +462,18 @@ class SubmissionManagementViewSet(viewsets.GenericViewSet):
             return answer.file_url
         return ''
 
+    @extend_schema(
+        tags=['Submissions'],
+        summary='Bulk delete submissions',
+        description='Delete multiple submissions at once. Maximum 100 submissions per request.',
+        request=BulkDeleteSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'deleted_count': {'type': 'integer'},
+                'failed_count': {'type': 'integer'}
+            }}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='bulk-delete')
     def bulk_delete(self, request, slug=None):
         """
@@ -431,6 +505,15 @@ class SubmissionManagementViewSet(viewsets.GenericViewSet):
             'deleted_count': deleted_count
         })
 
+    @extend_schema(
+        tags=['Submissions'],
+        summary='Bulk export submissions',
+        description='Export specific submissions by IDs. Maximum 1000 submissions per request.',
+        request=ExportSerializer,
+        responses={
+            200: {'description': 'File download', 'content': {'application/json': {}, 'text/csv': {}, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {}}}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='bulk-export')
     def bulk_export(self, request, slug=None):
         """

@@ -111,6 +111,28 @@ class ProcessListSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'steps_count', 'category_name']
 
 
+# Serializers for public process endpoints
+class ProcessViewSerializer(serializers.Serializer):
+    """Serializer for tracking process view"""
+    session_id = serializers.CharField(required=False, help_text='Optional session identifier')
+
+
+class ProcessStartSerializer(serializers.Serializer):
+    """Serializer for starting a process"""
+    session_id = serializers.CharField(required=False, help_text='Optional session identifier')
+
+
+class ProcessCompleteStepSerializer(serializers.Serializer):
+    """Serializer for completing a process step"""
+    submission_id = serializers.UUIDField(required=False, help_text='Optional submission ID')
+    session_id = serializers.CharField(required=False, help_text='Optional session ID')
+
+
+class ProcessCompleteSerializer(serializers.Serializer):
+    """Serializer for completing a process"""
+    session_id = serializers.CharField(required=True, help_text='Session identifier')
+
+
 class ProcessSerializer(serializers.ModelSerializer):
     """
     Detailed serializer for Process (Create, Retrieve, Update)

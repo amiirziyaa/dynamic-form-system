@@ -210,4 +210,11 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Process Analytics', 'description': 'Process analytics and reporting'},
         {'name': 'System', 'description': 'System health and version information'},
     ],
+    # Fix enum naming collisions for status fields
+    'ENUM_NAME_OVERRIDES': {
+        'FormSubmissionStatusEnum': 'submissions.models.FormSubmission.STATUS_CHOICES',
+        'ProcessProgressStatusEnum': 'submissions.models.ProcessProgress.STATUS_CHOICES',
+        'ProcessStepCompletionStatusEnum': 'submissions.models.ProcessStepCompletion.STATUS_CHOICES',
+        'NotificationLogStatusEnum': 'notifications.models.NotificationLog.STATUS_CHOICES',
+    },
 }

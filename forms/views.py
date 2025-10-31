@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django.shortcuts import get_object_or_404
 from django.db import models
 
@@ -20,6 +21,47 @@ from .models import Form, FormField, FieldOption
 from .permissions import IsFormOwner, CanManageFieldOptions
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Forms'],
+        summary='List form fields',
+        description='List all fields in a form.',
+        responses={200: FormFieldListSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Forms'],
+        summary='Create form field',
+        description='Add a new field to a form.',
+        request=FormFieldSerializer,
+        responses={201: FormFieldSerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Forms'],
+        summary='Get form field',
+        description='Get details of a specific form field.',
+        responses={200: FormFieldSerializer}
+    ),
+    update=extend_schema(
+        tags=['Forms'],
+        summary='Update form field',
+        description='Update a form field. All fields are required.',
+        request=FormFieldSerializer,
+        responses={200: FormFieldSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Forms'],
+        summary='Partially update form field',
+        description='Partially update a form field.',
+        request=FormFieldSerializer,
+        responses={200: FormFieldSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Forms'],
+        summary='Delete form field',
+        description='Delete a form field.',
+        responses={204: None}
+    )
+)
 class FormFieldViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing form fields
@@ -161,6 +203,18 @@ class FormFieldViewSet(viewsets.ModelViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+    @extend_schema(
+        tags=['Forms'],
+        summary='Reorder form fields',
+        description='Reorder fields in a form by providing new order_index values.',
+        request=FormFieldReorderSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'fields': {'type': 'array', 'items': {'type': 'object'}}
+            }}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='reorder')
     def reorder(self, request, *args, **kwargs):
         """
@@ -186,6 +240,47 @@ class FormFieldViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Forms'],
+        summary='List field options',
+        description='List all options for a field (used for select, radio, checkbox fields).',
+        responses={200: FieldOptionSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Forms'],
+        summary='Create field option',
+        description='Add a new option to a field.',
+        request=FieldOptionSerializer,
+        responses={201: FieldOptionSerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Forms'],
+        summary='Get field option',
+        description='Get details of a specific field option.',
+        responses={200: FieldOptionSerializer}
+    ),
+    update=extend_schema(
+        tags=['Forms'],
+        summary='Update field option',
+        description='Update a field option.',
+        request=FieldOptionSerializer,
+        responses={200: FieldOptionSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Forms'],
+        summary='Partially update field option',
+        description='Partially update a field option.',
+        request=FieldOptionSerializer,
+        responses={200: FieldOptionSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Forms'],
+        summary='Delete field option',
+        description='Delete a field option.',
+        responses={204: None}
+    )
+)
 class FieldOptionViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing field options
@@ -320,6 +415,18 @@ class FieldOptionViewSet(viewsets.ModelViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+    @extend_schema(
+        tags=['Forms'],
+        summary='Reorder field options',
+        description='Reorder options for a field by providing new order_index values.',
+        request=FieldOptionReorderSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'options': {'type': 'array', 'items': {'type': 'object'}}
+            }}
+        }
+    )
     @action(detail=False, methods=['post'], url_path='reorder')
     def reorder(self, request, *args, **kwargs):
         """
@@ -343,7 +450,85 @@ class FieldOptionViewSet(viewsets.ModelViewSet):
             'message': 'Options reordered successfully',
             'options': FieldOptionSerializer(options, many=True).data
         })
-    
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Forms'],
+        summary='List forms',
+        description='List all forms for the authenticated user.',
+        responses={200: FormListSerializer(many=True)}
+    ),
+    create=extend_schema(
+        tags=['Forms'],
+        summary='Create form',
+        description='Create a new form.',
+        request=FormSerializer,
+        responses={201: FormSerializer}
+    ),
+    retrieve=extend_schema(
+        tags=['Forms'],
+        summary='Get form details',
+        description='Get detailed information about a form including all fields.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            )
+        ],
+        responses={200: FormSerializer}
+    ),
+    update=extend_schema(
+        tags=['Forms'],
+        summary='Update form',
+        description='Update a form. All fields are required.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            )
+        ],
+        request=FormSerializer,
+        responses={200: FormSerializer}
+    ),
+    partial_update=extend_schema(
+        tags=['Forms'],
+        summary='Partially update form',
+        description='Partially update a form. Only provided fields will be updated.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            )
+        ],
+        request=FormSerializer,
+        responses={200: FormSerializer}
+    ),
+    destroy=extend_schema(
+        tags=['Forms'],
+        summary='Delete form',
+        description='Delete a form. This will also delete all fields and submissions.',
+        parameters=[
+            OpenApiParameter(
+                name='unique_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            )
+        ],
+        responses={204: None}
+    )
+)
 class FormViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing Forms (Create, List, Retrieve, Update, Delete)
@@ -357,6 +542,7 @@ class FormViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [IsAuthenticated, IsFormOwner]
     lookup_field = 'unique_slug'
+    lookup_url_kwarg = 'unique_slug'
 
     def get_queryset(self):
         """
