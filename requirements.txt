@@ -1,6 +1,15 @@
 asgiref==3.10.0
 Django==5.2.7
 djangorestframework==3.16.1
+djangorestframework-simplejwt==5.5.1
+drf-spectacular==0.28.0
 psycopg2-binary==2.9.11
 python-decouple==3.8
 sqlparse==0.5.3
+channels==4.3.1
+channels-redis==4.3.0
+celery==5.5.3
+django-celery-beat==2.8.1
+daphne==4.2.1
+django-allauth==65.13.0
+dj-rest-auth[with_social]==7.0.1

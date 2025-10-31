@@ -12,6 +12,8 @@ class UserManager(BaseUserManager):
         if not email:
             raise ValueError('The Email field must be set')
         email = self.normalize_email(email)
+        # Set username to email for AbstractUser compatibility
+        extra_fields.setdefault('username', email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -69,7 +71,9 @@ class User(AbstractUser):
         return f"{self.first_name} {self.last_name}".strip()
 
     def save(self, *args, **kwargs):
-        # Update last_login when user logs in
-        if not self.pk and not self.last_login:
-            self.last_login = timezone.now()
+        # Set username to email if not set (for AbstractUser compatibility)
+        if not self.username or self.username == '':
+            self.username = self.email
+        # Update last_login when user logs in (only for new users on first save)
+        # Note: last_login is handled by Django's authentication system
         super().save(*args, **kwargs)

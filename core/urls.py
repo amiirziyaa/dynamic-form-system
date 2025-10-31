@@ -15,8 +15,53 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+    SpectacularRedocView
+)
+import core.system_views
+from core.system_views import (
+    DashboardOverviewView,
+    DashboardStatisticsView,
+    RecentActivityView, 
+    GlobalSearchView,
+    FormsSearchView,
+    ProcessesSearchView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # System endpoints
+    path('api/v1/health/', core.system_views.health_check, name='health-check'),
+    path('api/v1/version/', core.system_views.version_info, name='version-info'),
+    
+    # OpenAPI Schema (drf-spectacular)
+    path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
+    
+    # Swagger UI
+    path('api/v1/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    
+    # ReDoc
+    path('api/v1/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('accounts/', include('allauth.urls'), name='socialaccount_signup'),
+
+    # Dashboard & Search Endpoints
+    path('api/v1/dashboard/overview/', DashboardOverviewView.as_view(), name='dashboard-overview'),
+    path('api/v1/dashboard/statistics/', DashboardStatisticsView.as_view(), name='dashboard-statistics'),
+    path('api/v1/dashboard/recent-activity/', RecentActivityView.as_view(), name='dashboard-recent-activity'),
+    path('api/v1/search/', GlobalSearchView.as_view(), name='global-search'),
+    path('api/v1/search/forms/', FormsSearchView.as_view(), name='search-forms'),
+    path('api/v1/search/processes/', ProcessesSearchView.as_view(), name='search-processes'),
+
+    # API v1 endpoints
+    path('api/v1/', include('forms.api.v1.urls')),
+    path('api/v1/', include('categories.api.v1.urls')),
+    path('api/v1/auth/', include('accounts.api.v1.urls')),
+    path('api/v1/users/', include('accounts.api.v1.user_urls')),
+    path('api/v1/', include('submissions.api.v1.urls')),
+    path('api/v1/admin/', include('notifications.api.v1.urls')),
+    path('api/v1/', include('processes.api.v1.urls')),
 ]

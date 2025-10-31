@@ -8,9 +8,12 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 """
 
 import os
-
+import django
 from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.dev')
 
-application = get_asgi_application()
+django.setup()
+
+# Import routing after Django setup
+from core.routing import application
