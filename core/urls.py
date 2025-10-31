@@ -21,5 +21,7 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
 
+    # API v1 endpoints
     path('api/v1/', include('forms.api.v1.urls')),
+    path('api/v1/', include('categories.api.v1.urls')),
 ]
