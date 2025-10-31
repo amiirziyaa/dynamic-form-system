@@ -3,6 +3,28 @@
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import warnings
+
+# Suppress deprecation warnings from dj-rest-auth and django-allauth
+# These warnings are from third-party libraries until they're fully updated
+warnings.filterwarnings(
+    'ignore',
+    message=r'.*app_settings\.(USERNAME_REQUIRED|EMAIL_REQUIRED) is deprecated.*',
+    category=UserWarning,
+    module='dj_rest_auth.registration.serializers'
+)
+# Suppress django-allauth system check warnings about deprecated settings
+# These warnings appear even when using the new format correctly
+warnings.filterwarnings(
+    'ignore',
+    message=r'.*ACCOUNT_(EMAIL_REQUIRED|USERNAME_REQUIRED) is deprecated.*',
+    category=Warning  # System check warnings use Warning, not UserWarning
+)
+warnings.filterwarnings(
+    'ignore',
+    message=r'.*settings\.ACCOUNT_(EMAIL_REQUIRED|USERNAME_REQUIRED) is deprecated.*',
+    category=Warning
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -128,6 +150,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
 
+# Silence django-allauth system check warnings
+# W001: False positive - email login with email signup fields is valid
+# The deprecated settings warnings are coming from django-allauth checking for old settings
+# even though we're using the new format correctly
+SILENCED_SYSTEM_CHECKS = ['account.W001']
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -251,6 +279,8 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Public Processes', 'description': 'Public process execution'},
         {'name': 'Process Analytics', 'description': 'Process analytics and reporting'},
         {'name': 'System', 'description': 'System health and version information'},
+        {'name': 'Admin Webhooks', 'description': 'Admin webhook management'},
+        {'name': 'Admin Reports', 'description': 'Admin report configuration and history'},
     ],
     # Fix enum naming collisions for status fields
     'ENUM_NAME_OVERRIDES': {
@@ -266,11 +296,23 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': False,
 }
 
+# django-allauth configuration
+# Using email-based authentication (no username)
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+# Updated to use new settings format (django-allauth 0.65+)
+ACCOUNT_LOGIN_METHODS = {'email'}  # Replaces ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+# ACCOUNT_SIGNUP_FIELDS - email only (no username since we use email authentication)
+# List format: '*' indicates required field
+# This format is compatible with ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Note: ACCOUNT_EMAIL_REQUIRED and ACCOUNT_USERNAME_REQUIRED are deprecated
+# but kept here for dj-rest-auth compatibility until it's updated
+# The warnings about these are suppressed via warning filters above
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {

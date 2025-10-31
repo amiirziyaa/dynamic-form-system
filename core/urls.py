@@ -23,9 +23,12 @@ from drf_spectacular.views import (
 )
 import core.system_views
 from core.system_views import (
-    DashboardOverviewView, 
+    DashboardOverviewView,
+    DashboardStatisticsView,
     RecentActivityView, 
-    GlobalSearchView
+    GlobalSearchView,
+    FormsSearchView,
+    ProcessesSearchView
 )
 
 urlpatterns = [
@@ -47,8 +50,11 @@ urlpatterns = [
 
     # Dashboard & Search Endpoints
     path('api/v1/dashboard/overview/', DashboardOverviewView.as_view(), name='dashboard-overview'),
+    path('api/v1/dashboard/statistics/', DashboardStatisticsView.as_view(), name='dashboard-statistics'),
     path('api/v1/dashboard/recent-activity/', RecentActivityView.as_view(), name='dashboard-recent-activity'),
     path('api/v1/search/', GlobalSearchView.as_view(), name='global-search'),
+    path('api/v1/search/forms/', FormsSearchView.as_view(), name='search-forms'),
+    path('api/v1/search/processes/', ProcessesSearchView.as_view(), name='search-processes'),
 
     # API v1 endpoints
     path('api/v1/', include('forms.api.v1.urls')),

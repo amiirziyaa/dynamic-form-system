@@ -1,0 +1,53 @@
+services:
+  db-test:
+    image: postgres:15-alpine
+    container_name: dynamicform_db_test
+    environment:
+      POSTGRES_DB: test_dynamicformdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && psql -U postgres -d test_dynamicformdb -c 'SELECT 1'"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: dynamicform_redis_test
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test:
+    build: .
+    container_name: dynamicform_test
+    entrypoint: /app/docker-entrypoint.sh
+    command: python manage.py test --keepdb --verbosity=2
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings.dev
+      - DB_HOST=db-test
+      - DB_PORT=5432
+      - DB_NAME=test_dynamicformdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_URL=redis://redis-test:6379/0
+      - CELERY_BROKER_URL=redis://redis-test:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis-test:6379/2
+      - SECRET_KEY=test-secret-key-for-testing-only-do-not-use-in-production
+      - DEBUG=True
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+

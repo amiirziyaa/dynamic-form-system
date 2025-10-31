@@ -27,6 +27,9 @@ urlpatterns = [
     # Password reset endpoints
     path('password/reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
-    path('google/', GoogleLoginView.as_view(), name='google_login'),
+    
+    # OAuth endpoints
+    path('oauth/google/', GoogleLoginView.as_view(), name='oauth-google'),
+    path('google/', GoogleLoginView.as_view(), name='google-login'),  # Legacy alias
 ]
 

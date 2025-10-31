@@ -41,8 +41,22 @@ class ReportScheduleSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def validate(self, data):
-        if not data.get('send_to_email') and not data.get('send_to_webhook'):
-            raise serializers.ValidationError("Either send_to_email or send_to_webhook must be set.")
+        # Only validate if creating new instance (not partial update)
+        if not self.instance:  # Creating new
+            if not data.get('send_to_email') and not data.get('send_to_webhook'):
+                raise serializers.ValidationError("Either send_to_email or send_to_webhook must be set.")
+        else:  # Partial update - check if both are being removed
+            if 'send_to_email' in data and 'send_to_webhook' in data:
+                if not data.get('send_to_email') and not data.get('send_to_webhook'):
+                    raise serializers.ValidationError("Either send_to_email or send_to_webhook must be set.")
+            elif 'send_to_email' in data and not data.get('send_to_email'):
+                # If removing email, ensure webhook exists
+                if not self.instance.send_to_webhook:
+                    raise serializers.ValidationError("Cannot remove send_to_email without setting send_to_webhook.")
+            elif 'send_to_webhook' in data and not data.get('send_to_webhook'):
+                # If removing webhook, ensure email exists
+                if not self.instance.send_to_email:
+                    raise serializers.ValidationError("Cannot remove send_to_webhook without setting send_to_email.")
         return data
 
     def validate_send_to_webhook(self, value):

@@ -162,13 +162,49 @@ class DashboardStatsSerializer(serializers.Serializer):
 
 @extend_schema(
     tags=['Dashboard'],
-    summary='Get dashboard overview statistics',
-    description='Returns aggregated statistics for the authenticated user (form/process counts, submission analytics). This covers both /overview/ and /statistics/ endpoints.',
+    summary='Get dashboard overview',
+    description='Returns aggregated statistics for the authenticated user (form/process counts, submission analytics).',
     responses={200: DashboardStatsSerializer}
 )
 class DashboardOverviewView(APIView):
     """
     GET /api/v1/dashboard/overview/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        
+        total_forms = Form.objects.filter(user=user).count()
+        total_processes = Process.objects.filter(user=user).count()
+        
+        total_submissions = FormSubmission.objects.filter(form__user=user, status='submitted').count()
+        total_views = FormView.objects.filter(form__user=user).count()
+        
+        completion_rate = 0.0
+        if total_views > 0:
+            completion_rate = (total_submissions / total_views) * 100
+            
+        data = {
+            "total_forms": total_forms,
+            "total_processes": total_processes,
+            "total_submissions": total_submissions,
+            "total_views": total_views,
+            "completion_rate": round(completion_rate, 2)
+        }
+        
+        serializer = DashboardStatsSerializer(data)
+        return Response(serializer.data)
+
+
+@extend_schema(
+    tags=['Dashboard'],
+    summary='Get dashboard statistics',
+    description='Returns aggregated user statistics (form/process counts, submission analytics). Alias for /overview/ endpoint.',
+    responses={200: DashboardStatsSerializer}
+)
+class DashboardStatisticsView(APIView):
+    """
     GET /api/v1/dashboard/statistics/
     """
     permission_classes = [IsAuthenticated]
@@ -308,3 +344,83 @@ class GlobalSearchView(APIView):
         }
         
         return Response(data)
+
+
+@extend_schema(
+    tags=['Dashboard'],
+    summary='Search forms',
+    description='Search in forms only for the authenticated user.',
+    parameters=[
+        OpenApiParameter(
+            name='search', 
+            type=OpenApiTypes.STR, 
+            location=OpenApiParameter.QUERY,
+            description='The search term to look for in form titles, descriptions, and slugs.',
+            required=True
+        )
+    ],
+    responses={200: FormListSerializer(many=True)}
+)
+class FormsSearchView(APIView):
+    """
+    GET /api/v1/search/forms/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        query = request.query_params.get('search', None)
+        if not query:
+            return Response({"error": "A 'search' query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        
+        search_query = (
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(unique_slug__icontains=query)
+        )
+        
+        forms = Form.objects.filter(user=user).filter(search_query)
+        form_serializer = FormListSerializer(forms, many=True)
+        
+        return Response(form_serializer.data)
+
+
+@extend_schema(
+    tags=['Dashboard'],
+    summary='Search processes',
+    description='Search in processes only for the authenticated user.',
+    parameters=[
+        OpenApiParameter(
+            name='search', 
+            type=OpenApiTypes.STR, 
+            location=OpenApiParameter.QUERY,
+            description='The search term to look for in process titles, descriptions, and slugs.',
+            required=True
+        )
+    ],
+    responses={200: ProcessListSerializer(many=True)}
+)
+class ProcessesSearchView(APIView):
+    """
+    GET /api/v1/search/processes/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        query = request.query_params.get('search', None)
+        if not query:
+            return Response({"error": "A 'search' query parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        
+        search_query = (
+            Q(title__icontains=query) |
+            Q(description__icontains=query) |
+            Q(unique_slug__icontains=query)
+        )
+        
+        processes = Process.objects.filter(user=user).filter(search_query)
+        process_serializer = ProcessListSerializer(processes, many=True)
+        
+        return Response(process_serializer.data)
