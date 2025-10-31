@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from forms.models import Form, FormField
 from forms.permissions import IsFormOwner
 from . import services
@@ -23,7 +24,7 @@ class FormAnalyticsViewSet(viewsets.GenericViewSet):
         form_slug = self.kwargs.get('form_slug')
         form_obj = get_object_or_404(Form, unique_slug=form_slug)
         
-        self.check_object_permission(self.request, form_obj)
+        self.check_object_permissions(self.request, form_obj)
         return form_obj
 
     def get_field_object(self):
@@ -94,6 +95,21 @@ class FormAnalyticsViewSet(viewsets.GenericViewSet):
         serializer = DropOffReportSerializer(report)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=['Form Analytics'],
+        summary='Get summary report',
+        description='Get aggregated summary report for all form fields including statistics and aggregations.',
+        parameters=[
+            OpenApiParameter(
+                name='form_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            )
+        ],
+        responses={200: SummaryReportSerializer(many=True)}
+    )
     @action(detail=False, methods=['get'], url_path='reports/summary')
     def summary_report(self, request, *args, **kwargs):
         """
@@ -104,6 +120,28 @@ class FormAnalyticsViewSet(viewsets.GenericViewSet):
         serializer = SummaryReportSerializer(report, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=['Form Analytics'],
+        summary='Get field-specific report',
+        description='Get detailed analytics report for a specific form field including answer distributions and statistics.',
+        parameters=[
+            OpenApiParameter(
+                name='form_slug',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form unique slug',
+                required=True
+            ),
+            OpenApiParameter(
+                name='field_id',
+                type=str,
+                location=OpenApiParameter.PATH,
+                description='Form field UUID',
+                required=True
+            )
+        ],
+        responses={200: FieldSpecificReportSerializer}
+    )
     @action(detail=False, methods=['get'], url_path='reports/field/(?P<field_id>[^/.]+)')
     def field_report(self, request, *args, **kwargs):
         """
@@ -114,9 +152,29 @@ class FormAnalyticsViewSet(viewsets.GenericViewSet):
         serializer = FieldSpecificReportSerializer(report)
         return Response(serializer.data)
 
+    @extend_schema(
+        tags=['Form Analytics'],
+        summary='Get real-time report data',
+        description='Get current snapshot of form analytics. For live streaming updates, connect to WebSocket at ws://host/ws/v1/forms/{slug}/reports/live/',
+        responses={
+            200: SummaryReportSerializer(many=True),
+            'description': 'Returns current analytics snapshot. Use WebSocket for real-time updates.'
+        }
+    )
     @action(detail=False, methods=['get'], url_path='reports/real-time')
     def real_time_report(self, request, *args, **kwargs):
+        """
+        GET /api/v1/forms/{slug}/reports/real-time/
+        
+        Returns current snapshot of analytics data.
+        For live streaming updates, connect to WebSocket:
+        ws://host/ws/v1/forms/{slug}/reports/live/
+        """
         form = self.get_form_object()
         report = services.get_summary_report(form)
         serializer = SummaryReportSerializer(report, many=True)
-        return Response(serializer.data)
+        return Response({
+            'data': serializer.data,
+            'websocket_url': f'ws://{request.get_host()}/ws/v1/forms/{form.unique_slug}/reports/live/',
+            'message': 'This is a snapshot. Connect to WebSocket for real-time updates.'
+        })

@@ -1,4 +1,5 @@
 import uuid
+import json
 from django.db import models
 from django.conf import settings
 from django_celery_beat.models import PeriodicTask, CrontabSchedule

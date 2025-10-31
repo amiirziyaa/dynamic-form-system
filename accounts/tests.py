@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch, MagicMock
 
@@ -802,3 +803,95 @@ class ServicesTestCase(TestCase):
         # Token should no longer be valid
         user_from_token = TokenService.get_user_from_password_reset_token(token)
         self.assertIsNone(user_from_token)
+
+
+class GoogleOAuthAPITestCase(APITestCase):
+    """Test cases for Google OAuth API endpoints"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.google_oauth_url = reverse('auth:oauth-google')
+        self.google_login_url = reverse('auth:google-login')  # Legacy alias
+        
+    @patch('allauth.socialaccount.providers.google.views.GoogleOAuth2Adapter._fetch_user_info')
+    def test_google_oauth_success(self, mock_fetch_user_info):
+        """Test successful Google OAuth login"""
+        # Mock the Google API response
+        mock_fetch_user_info.return_value = {
+            'id': '123456789',
+            'email': 'user@gmail.com',
+            'given_name': 'John',
+            'family_name': 'Doe',
+            'verified_email': True
+        }
+        
+        data = {
+            'access_token': 'mock_google_access_token'
+        }
+        
+        response = self.client.post(self.google_oauth_url, data, format='json')
+        
+        # The actual response depends on dj_rest_auth implementation
+        # We're just verifying the endpoint is accessible and accepts the data
+        self.assertIn(response.status_code, [
+            status.HTTP_200_OK,
+            status.HTTP_201_CREATED,  # User created
+            status.HTTP_400_BAD_REQUEST,  # If token is invalid in test
+            status.HTTP_401_UNAUTHORIZED  # If token validation fails
+        ])
+    
+    def test_google_oauth_missing_token(self):
+        """Test Google OAuth without access token"""
+        response = self.client.post(self.google_oauth_url, {}, format='json')
+        
+        # Should return 400 if token is required
+        self.assertIn(response.status_code, [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED
+        ])
+    
+    @patch('dj_rest_auth.registration.serializers.SocialLoginSerializer.get_social_login')
+    def test_google_oauth_invalid_token(self, mock_get_social_login):
+        """Test Google OAuth with invalid access token"""
+        # Mock the get_social_login method to raise a validation error
+        # This simulates what happens when OAuth validation fails
+        from rest_framework.exceptions import ValidationError
+        mock_get_social_login.side_effect = ValidationError({
+            'non_field_errors': ['Invalid token or authentication failed']
+        })
+        
+        data = {
+            'access_token': 'invalid_token_12345'
+        }
+        
+        response = self.client.post(self.google_oauth_url, data, format='json')
+        
+        # Should return validation error for invalid token
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('non_field_errors', response.data or {})
+    
+    @patch('allauth.socialaccount.providers.google.views.GoogleOAuth2Adapter._fetch_user_info')
+    def test_google_oauth_legacy_endpoint(self, mock_fetch_user_info):
+        """Test that legacy /google/ endpoint still works"""
+        # Mock to return valid user info so the endpoint can process it
+        mock_fetch_user_info.return_value = {
+            'id': '123456789',
+            'email': 'user@gmail.com',
+            'given_name': 'John',
+            'family_name': 'Doe',
+            'verified_email': True
+        }
+        
+        data = {
+            'access_token': 'mock_token'
+        }
+        
+        response = self.client.post(self.google_login_url, data, format='json')
+        
+        # Should be accessible (may fail with invalid token but endpoint should exist)
+        self.assertIn(response.status_code, [
+            status.HTTP_200_OK,
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED
+        ])

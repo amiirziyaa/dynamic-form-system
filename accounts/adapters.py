@@ -1,6 +1,8 @@
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from allauth.account.adapter import DefaultAccountAdapter
-from django.conf import settings
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class CustomAccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request):
@@ -14,7 +16,6 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         if sociallogin.account.provider == 'google':
             email = sociallogin.account.extra_data.get('email')
             if email:
-                User = settings.AUTH_USER_MODEL
                 try:
                     user = User.objects.get(email=email)
                     sociallogin.connect(request, user)

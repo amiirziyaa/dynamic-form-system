@@ -433,7 +433,7 @@ class FormListSerializer(serializers.ModelSerializer):
     """
     Serializer for listing Forms (lightweight).
     """
-    fields_count = serializers.IntegerField(read_only=True)
+    fields_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Form
@@ -441,7 +441,12 @@ class FormListSerializer(serializers.ModelSerializer):
             'id', 'title', 'unique_slug', 'visibility', 'is_active', 
             'published_at', 'created_at', 'updated_at', 'fields_count'
         ]
-        read_only_fields = fields
+        read_only_fields = ['id', 'title', 'unique_slug', 'visibility', 'is_active', 
+                           'published_at', 'created_at', 'updated_at']
+    
+    def get_fields_count(self, obj) -> int:
+        """Get the count of fields for this form"""
+        return obj.fields.count()
 
 
 class FormSerializer(serializers.ModelSerializer):
