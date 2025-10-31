@@ -339,6 +339,7 @@ class ProcessViewSet(viewsets.ModelViewSet):
     lookup_field = 'unique_slug'
     lookup_url_kwarg = 'unique_slug'
     queryset = Process.objects.none()  # For schema generation only, actual queryset from get_queryset()
+    search_fields = ['title', 'description', 'unique_slug']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

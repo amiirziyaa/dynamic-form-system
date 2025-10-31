@@ -9,6 +9,7 @@ from accounts.views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
 )
+from accounts.google_views import GoogleLoginView
 
 app_name = 'auth'
 
@@ -26,5 +27,6 @@ urlpatterns = [
     # Password reset endpoints
     path('password/reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('google/', GoogleLoginView.as_view(), name='google_login'),
 ]
 
