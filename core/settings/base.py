@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',  # For token blacklisting on logout
+    'drf_spectacular',  # OpenAPI 3.0 schema generation and Swagger UI
 
     # Local apps
     'accounts',
@@ -119,6 +120,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -168,4 +170,44 @@ CACHES = {
         # 'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         # 'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
     }
+}
+
+# API Configuration
+API_VERSION = config('API_VERSION', default='1.0.0')
+CHANGELOG_URL = config('CHANGELOG_URL', default=None)
+ENVIRONMENT = config('ENVIRONMENT', default='development')
+
+# drf-spectacular settings for OpenAPI schema
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Dynamic Forms System API',
+    'DESCRIPTION': 'RESTful API for managing dynamic forms, processes, and submissions',
+    'VERSION': API_VERSION,
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'AUTHENTICATION_WHITELIST': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'SERVERS': [
+        {
+            'url': 'http://localhost:8000/api/v1',
+            'description': 'Development server'
+        },
+        {
+            'url': 'https://api.example.com/api/v1',
+            'description': 'Production server'
+        },
+    ],
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User authentication and registration'},
+        {'name': 'Users', 'description': 'User profile management'},
+        {'name': 'Categories', 'description': 'Category management'},
+        {'name': 'Forms', 'description': 'Form creation and management'},
+        {'name': 'Public Forms', 'description': 'Public form access and submission'},
+        {'name': 'Submissions', 'description': 'Form submission management'},
+        {'name': 'Processes', 'description': 'Process management'},
+        {'name': 'Public Processes', 'description': 'Public process execution'},
+        {'name': 'Process Analytics', 'description': 'Process analytics and reporting'},
+        {'name': 'System', 'description': 'System health and version information'},
+    ],
 }
